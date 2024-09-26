@@ -9,6 +9,12 @@ class MotionMatchingDatabase:
         self.config = config
         self.AMASS_path = self.config["database"]["AMASS_path"]
         self.AMASS_cache_path = self.config["database"]["AMASS_cache_path"]
+        self.fps = self.config["database"]["fps"]
+        self.consider_trajectory_interval = self.config["motion_matching"]["consider_trajectory_interval"]
+        self.consider_trajectory_range = self.config["motion_matching"]["consider_trajectory_range"]
+        self.search_interval = self.config["motion_matching"]["search_interval"]
+        
+        self.exempt_frame_num = max(self.consider_trajectory_range, self.search_interval)
         
         # Fixed index for left and right foot
         self.left_foot_index = self.config["database"]["left_foot_index"]
@@ -35,7 +41,6 @@ class MotionMatchingDatabase:
                 "orientation": z_up_to_y_up_rotation(motion_data_all["poses"][:, :3]),
                 "body_pose": motion_data_all["poses"][:, 3:66],
                 "hand_pose": motion_data_all["poses"][:, 66:],
-                # "beta": motion_data_all["betas"]
             }
             self.motion_data[motion_file] = motion_data
             print(f"Load motion data: {motion_file}")
@@ -92,7 +97,7 @@ class MotionMatchingDatabase:
             print(f'Raw data key: {list(self.motion_data_key[motion_name].keys())}')
             print(f'Key data: {list(self.motion_data_key[motion_name].keys())}')
     
-    def search(self, condition, search_interval=20):
+    def search(self, condition):
         '''
         Args:
             - condition: a dict containing the condition for searching
@@ -100,7 +105,6 @@ class MotionMatchingDatabase:
                 - cur_root_y_angular_velocity: the current root y angular velocity, one value
                 - cur_foot_relative_position: the current foot relative position, shape (2, 3)
                 - future_root_xz_position: the future root xz position (relative to the current frame, also rotated so that the current root y rotation is 0), shape (2, )
-            - search_interval: the search interval
 
         Returns:
             - motion: a dict containing the following several frames motion data, **start from 0 pos and 0 orientation**
@@ -115,20 +119,22 @@ class MotionMatchingDatabase:
         for motion_name, motion_data_key in self.motion_data_key.items():
             # Calculate current loss
             front_root_xz_velocity = motion_data_key["root_xz_velocity"]
-            loss_cur_root_xz_velocity = np.linalg.norm(front_root_xz_velocity - condition["cur_root_xz_velocity"], axis=1)[:-search_interval]
-            loss_cur_root_y_angular_velocity = np.abs(motion_data_key["root_y_angular_velocity"] - condition["cur_root_y_angular_velocity"])[:-search_interval]
+            loss_cur_root_xz_velocity = np.linalg.norm(front_root_xz_velocity - condition["cur_root_xz_velocity"], axis=1)[:-self.exempt_frame_num]
+            loss_cur_root_y_angular_velocity = np.abs(motion_data_key["root_y_angular_velocity"] - condition["cur_root_y_angular_velocity"])[:-self.exempt_frame_num]
             
             # Calculate current foot relative position loss
-            # print(f"motion_data_key['foot_relative_position']: {motion_data_key['foot_relative_position'].shape}")
-            # print(f"condition['cur_foot_relative_position']: {condition['cur_foot_relative_position'].shape}")
-            loss_cur_foot_relative_position = np.sum(np.linalg.norm(motion_data_key["foot_relative_position"] - condition["cur_foot_relative_position"], axis=2), axis=1)[:-search_interval]
+            loss_cur_foot_relative_position = np.sum(np.linalg.norm(motion_data_key["foot_relative_position"] - condition["cur_foot_relative_position"], axis=2), axis=1)[:-self.exempt_frame_num]
             
             # Calculate future root relative xz position
-            future_root_xz_position = motion_data_key["root_xz_translation"][search_interval:] - motion_data_key["root_xz_translation"][:-search_interval]
-            future_root_xz_position_in_current_root_y_rotation = rotate_xz_vector(-motion_data_key["root_y_rotation"][:-search_interval], future_root_xz_position)
-            
-            # Calculate future loss
-            loss_future_root_xz_position = np.linalg.norm(future_root_xz_position_in_current_root_y_rotation - condition["future_root_xz_position"], axis=1)
+            loss_future_trajectory = np.zeros(motion_data_key["root_xz_translation"].shape[0] - self.exempt_frame_num)
+            for i, trajectory_distance in enumerate(range(self.consider_trajectory_interval, self.consider_trajectory_range, self.consider_trajectory_interval)):
+                future_root_xz_position = motion_data_key["root_xz_translation"][trajectory_distance:] - motion_data_key["root_xz_translation"][:-trajectory_distance]
+                future_root_xz_position_in_current_root_y_rotation = rotate_xz_vector(-motion_data_key["root_y_rotation"][:-trajectory_distance], future_root_xz_position)
+                future_root_xz_position_in_current_root_y_rotation = future_root_xz_position_in_current_root_y_rotation[:- self.exempt_frame_num + trajectory_distance]
+                
+                # Calculate future loss
+                loss_future_root_xz_position = np.linalg.norm(future_root_xz_position_in_current_root_y_rotation - condition["future_root_xz_position"][i], axis=1)
+                loss_future_trajectory += loss_future_root_xz_position
             
             # Calculate total loss
             loss = loss_cur_root_xz_velocity * self.loss_weight["cur_root_xz_velocity"] + loss_cur_root_y_angular_velocity * self.loss_weight["cur_root_y_angular_velocity"] + loss_cur_foot_relative_position * self.loss_weight["cur_foot_relative_position"] + loss_future_root_xz_position * self.loss_weight["future_root_xz_position"]
@@ -147,25 +153,18 @@ cur_foot_relative_position_loss: {loss_cur_foot_relative_position[best_frame_ind
 future_root_xz_position_loss: {loss_future_root_xz_position[best_frame_index]*self.loss_weight['future_root_xz_position']:.6f}")
         
         R_y = R.from_rotvec(self.motion_data_key[best_motion_name]["root_y_rotation"][best_frame_index].reshape(-1, 1) * np.array([[0, 1, 0]])) # Reverse the rotation so that the root node of the current frame faces forward.
-        front_translation = R_y.inv().apply(self.motion_data[best_motion_name]["translation"][best_frame_index:best_frame_index+search_interval] - self.motion_data[best_motion_name]["translation"][best_frame_index])
-        front_orientation = (R_y.inv()*R.from_rotvec(self.motion_data[best_motion_name]["orientation"][best_frame_index:best_frame_index+search_interval])).as_rotvec()
-        # ## test
-        # R_0=R.from_rotvec(self.motion_data[best_motion_name]["orientation"][best_frame_index])
-        # print(f'R_0: {R_0.as_quat()}')
-        # RRR=R.from_rotvec(decompose_rotation_with_yaxis(self.motion_data[best_motion_name]["orientation"][best_frame_index])*np.array([0,1,0]))
-        # print(f'Ry: {RRR.as_rotvec()}')
-        # print(f'decompose no Ry: {decompose_rotation_with_yaxis((RRR.inv()*R.from_rotvec(self.motion_data[best_motion_name]["orientation"][best_frame_index])).as_rotvec())}')
-        # ## test
+        front_translation = R_y.inv().apply(self.motion_data[best_motion_name]["translation"][best_frame_index:best_frame_index+self.search_interval] - self.motion_data[best_motion_name]["translation"][best_frame_index])
+        front_orientation = (R_y.inv()*R.from_rotvec(self.motion_data[best_motion_name]["orientation"][best_frame_index:best_frame_index+self.search_interval])).as_rotvec()
         motion = {
             "translation": front_translation,
             "orientation": front_orientation,
-            "body_pose": self.motion_data[best_motion_name]["body_pose"][best_frame_index:best_frame_index+search_interval],
-            "hand_pose": self.motion_data[best_motion_name]["hand_pose"][best_frame_index:best_frame_index+search_interval],
+            "body_pose": self.motion_data[best_motion_name]["body_pose"][best_frame_index:best_frame_index+self.search_interval],
+            "hand_pose": self.motion_data[best_motion_name]["hand_pose"][best_frame_index:best_frame_index+self.search_interval],
             
             # For update current state, don't need to calculate again
-            "root_xz_velocity": self.motion_data_key[best_motion_name]["root_xz_velocity"][best_frame_index:best_frame_index+search_interval],
-            "root_y_angular_velocity": self.motion_data_key[best_motion_name]["root_y_angular_velocity"][best_frame_index:best_frame_index+search_interval],
-            "foot_relative_position": self.motion_data_key[best_motion_name]["foot_relative_position"][best_frame_index:best_frame_index+search_interval],
+            "root_xz_velocity": self.motion_data_key[best_motion_name]["root_xz_velocity"][best_frame_index:best_frame_index+self.search_interval],
+            "root_y_angular_velocity": self.motion_data_key[best_motion_name]["root_y_angular_velocity"][best_frame_index:best_frame_index+self.search_interval],
+            "foot_relative_position": self.motion_data_key[best_motion_name]["foot_relative_position"][best_frame_index:best_frame_index+self.search_interval],
         }
         return motion
                 

@@ -13,6 +13,9 @@ __pycache__
 *.npy
 *.pkl
 
+# Image
+*.png
+
 # Tmp
 motionmatching
 test*

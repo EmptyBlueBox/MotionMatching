@@ -7,44 +7,44 @@ from scipy.spatial.transform import Rotation as R
 
 def compute_vertex_normals(vertices, faces):
     """
-    使用向量化操作计算顶点法向量。
+    Compute vertex normals using vectorized operations.
 
-    参数:
-    vertices (np.ndarray): 顶点坐标数组，形状为 (N, 3)。
-    faces (np.ndarray): 面的顶点索引数组，形状为 (M, 3)。
+    Arguments:
+    vertices (np.ndarray): An array of vertex coordinates with shape (N, 3).
+    faces (np.ndarray): An array of vertex indices for each face with shape (M, 3).
 
-    返回:
-    np.ndarray: 归一化后的顶点法向量数组，形状为 (N, 3)。
+    Returns:
+    np.ndarray: An array of normalized vertex normals with shape (N, 3).
     """
-    # 获取三角形的顶点
+    # Get the vertices of the triangles
     v0 = vertices[faces[:, 0]]
     v1 = vertices[faces[:, 1]]
     v2 = vertices[faces[:, 2]]
 
-    # 计算每个面的法向量
+    # Compute the normal vectors for each face
     normals = np.cross(v1 - v0, v2 - v0)
 
-    # 计算法向量的长度
+    # Compute the lengths of the normal vectors
     norm_lengths = np.linalg.norm(normals, axis=1)
 
-    # 避免除以零，将长度为零的法向量设为一个微小值
+    # Avoid division by zero, set the normal vectors with zero length to a small value
     norm_lengths[norm_lengths == 0] = 1e-10
 
-    # 归一化法向量
+    # Normalize the normal vectors
     normals /= norm_lengths[:, np.newaxis]
 
-    # 将法向量累加到顶点上
+    # Add the normal vectors to the vertices
     vertex_normals = np.zeros_like(vertices)
     for i in range(3):
         np.add.at(vertex_normals, faces[:, i], normals)
 
-    # 计算顶点法向量的长度
+    # Compute the lengths of the vertex normals
     vertex_norm_lengths = np.linalg.norm(vertex_normals, axis=1)
 
-    # 避免除以零，将长度为零的顶点法向量设为一个微小值
+    # Avoid division by zero, set the normal vectors with zero length to a small value
     vertex_norm_lengths[vertex_norm_lengths == 0] = 1e-10
 
-    # 归一化顶点法向量
+    # Normalize the vertex normals
     vertex_normals = (vertex_normals.T / vertex_norm_lengths).T
     return vertex_normals
 
@@ -56,11 +56,11 @@ def z_up_to_y_up_translation(translation):
     
     Arguments:
     
-    * `translation`: [N, 3]的ndarray, 表示平移
+    * `translation`: [N, 3] ndarray, representing translations
     
     Returns:
 
-    * `translation`: [N, 3]的ndarray, 表示平移
+    * `translation`: [N, 3] ndarray, representing translations
     """
 
     translation=translation[:, [0, 2, 1]]*np.array([1, 1, -1])
@@ -74,11 +74,11 @@ def z_up_to_y_up_rotation(orientation):
     
     Arguments:
     
-    * `orientation`: [N, 3]的ndarray, 表示旋转, rotvec形式, 方向为z-up
+    * `orientation`: [N, 3] ndarray, representing rotations in rotvec form, with z-up direction
     
     Returns:
     
-    * `orientation`: [N, 3]的ndarray, 表示旋转, rotvec形式, 方向为y-up
+    * `orientation`: [N, 3] ndarray, representing rotations in rotvec form, with y-up direction
     """
     R_original = R.from_rotvec(orientation)
     R_z_up_to_y_up = R.from_euler('XYZ', [-np.pi/2, 0, 0], degrees=False)
@@ -181,7 +181,6 @@ def rotate_xz_vector(angle, vector_2d):
     """
     Rotate the 2D vector in the xz plane
     """
-    # print(f"angle: {angle.shape}, vector_2d: {vector_2d.shape}")
     if vector_2d.ndim == 1:
         R_y = R.from_rotvec(np.array([0, angle, 0]))
         vector_2d = vector_2d.reshape(1, -1)
@@ -201,7 +200,7 @@ def halflife2dampling(halflife):
 
 def decay_spring_implicit_damping_pos(pos, vel, halflife, dt):
     '''
-    一个阻尼弹簧, 用来衰减位置
+    A damped spring, used to attenuate position
     '''
     d = halflife2dampling(halflife)/2
     j1 = vel + d * pos
@@ -213,7 +212,7 @@ def decay_spring_implicit_damping_pos(pos, vel, halflife, dt):
 
 def decay_spring_implicit_damping_rot(rot, avel, halflife, dt):
     '''
-    一个阻尼弹簧, 用来衰减旋转
+    A damped spring, used to attenuate rotation
     '''
     d = halflife2dampling(halflife)/2
     j0 = rot
@@ -231,13 +230,13 @@ def concatenate_two_positions(pos1, pos2, frame_time:float = 1/120, half_life:fl
     Concatenate two positions with a spring
     
     Arguments:
-        * `pos1`: [N, M, 3] ndarray, 表示第一段动作
-        * `pos2`: [N, M, 3] ndarray, 表示第二段动作
-        * `frame_time`: float, 表示一帧的时间
-        * `half_life`: float, 表示半衰期
+        * `pos1`: [N, M, 3] ndarray, Indicates the first segment of motion
+        * `pos2`: [N, M, 3] ndarray, Indicates the second segment of motion
+        * `frame_time`: float, Indicates the time of a frame
+        * `half_life`: float, Indicates the half-life of the spring
     
     Returns:
-        * `pos`: [N, M, 3] ndarray, 表示连接后的第二段动作
+        * `pos`: [N, M, 3] ndarray, Indicates the second segment of motion
     """
     one_joint = False # 是否只对一个关节进行操作
     if pos1.ndim == 2:
@@ -265,13 +264,13 @@ def concatenate_two_rotations(rot1, rot2, frame_time:float = 1/120, half_life:fl
     Concatenate two rotations with a spring
     
     Arguments:
-        * `rot1`: [N, M, 3] ndarray, 表示第一段动作, 旋转轴角形式
-        * `rot2`: [N, M, 3] ndarray, 表示第二段动作, 旋转轴角形式
-        * `frame_time`: float, 表示一帧的时间
-        * `half_life`: float, 表示半衰期
+        * `rot1`: [N, M, 3] ndarray, Indicates the first segment of motion, in the form of rotation axis angle
+        * `rot2`: [N, M, 3] ndarray, Indicates the second segment of motion, in the form of rotation axis angle
+        * `frame_time`: float, Indicates the time of a frame
+        * `half_life`: float, Indicates the half-life of the spring
     
     Returns:
-        * `rot`: [N, M, 4] ndarray, 表示连接后的第二段动作
+        * `rot`: [N, M, 4] ndarray, Indicates the second segment of motion, in the form of rotation axis angle
     """
     one_joint = False # 是否只对一个关节进行操作
     if rot1.ndim == 2:
@@ -285,7 +284,7 @@ def concatenate_two_rotations(rot1, rot2, frame_time:float = 1/120, half_life:fl
     R22 = R.from_rotvec(rot2[1])
     
     rot_diff = (R11*R21.inv()).as_rotvec()
-    avel_diff = np.linalg.norm((R12 * R11.inv()).as_rotvec(), axis=1) - np.linalg.norm((R21 * R22.inv()).as_rotvec(), axis=1)
+    avel_diff = np.linalg.norm((R11 * R12.inv()).as_rotvec(), axis=1) - np.linalg.norm((R22 * R21.inv()).as_rotvec(), axis=1)
     
     frame_num, joint_num, _ = np.shape(rot2)
     for i in range(frame_num):
@@ -299,28 +298,72 @@ def concatenate_two_rotations(rot1, rot2, frame_time:float = 1/120, half_life:fl
     return rot2 
 
 
+def interpolate_2d_line_by_distance(points, distance, expected_points=10):
+    """
+    Perform linear interpolation on a 2D polyline to generate points at a fixed distance,
+    ensuring at least a minimum number of points.
+
+    Parameters:
+    points (numpy.ndarray): Array of original points with shape (n, 2).
+    distance (float): Fixed distance between interpolated points.
+    expected_points (int): Expected number of points to ensure.
+
+    Returns:
+    numpy.ndarray: Interpolated points.
+    """
+    # Initialize the list of interpolated points with the first point
+    interpolated_points = [points[0]]
+    accumulated_distance = 0.0
+
+    # Iterate over each segment in the polyline
+    for i in range(1, len(points)):
+        p1 = points[i - 1]
+        p2 = points[i]
+        segment_length = np.linalg.norm(p2 - p1)
+        
+        # Calculate how many full segments of 'distance' fit in the current segment
+        while accumulated_distance + segment_length >= distance:
+            # Calculate the position along the segment where the new point should be placed
+            t = (distance - accumulated_distance) / segment_length
+            new_point = (1 - t) * p1 + t * p2
+            interpolated_points.append(new_point)
+            if len(interpolated_points) >= expected_points:
+                return np.array(interpolated_points)
+            # Update p1 to the new point for the next iteration
+            p1 = new_point
+            # Reset the accumulated distance
+            accumulated_distance = 0.0
+            # Update segment_length to the remaining part of the segment
+            segment_length = np.linalg.norm(p2 - p1)
+        
+        # Add any remaining distance to the accumulated distance
+        accumulated_distance += segment_length
+
+    # Ensure at least the expected number of points
+    if len(interpolated_points) < expected_points:
+        additional_points = expected_points - len(interpolated_points)
+        total_length = sum(np.linalg.norm(points[i] - points[i - 1]) for i in range(1, len(points)))
+        target_distances = np.linspace(0, total_length, expected_points)
+        interpolated_points = [points[0]]  # Reset and start with the first point again
+        accumulated_distance = 0.0
+        
+        for i in range(1, len(points)):
+            p1 = points[i - 1]
+            p2 = points[i]
+            segment_length = np.linalg.norm(p2 - p1)
+            
+            while accumulated_distance + segment_length >= distance:
+                t = (distance - accumulated_distance) / segment_length
+                new_point = (1 - t) * p1 + t * p2
+                interpolated_points.append(new_point)
+                p1 = new_point
+                accumulated_distance = 0.0
+                segment_length = np.linalg.norm(p2 - p1)
+            
+            accumulated_distance += segment_length
+
+    return np.array(interpolated_points)
+
+
 if __name__ == "__main__":
-    # 定义两个四元数 q1 和 q2，其中 q2 是 q1 的反向版本
-    q1 = np.array([0.707, 0.0, 0.707, 0.0])  # 代表绕 z 轴 90 度旋转
-    q2 = q1  # q2 是 q1 的反向版本，表示相同的旋转
-
-    # 将四元数转为旋转对象
-    r1 = R.from_quat(q1)
-    r2 = R.from_quat(q2)
-
-    # 计算旋转差异
-    delta_rotation = r2 * r1.inv()
-
-    # 将旋转差异转为轴角表示
-    axis_angle = delta_rotation.as_rotvec()
-    angle = np.linalg.norm(axis_angle)
-    axis = axis_angle / angle if angle != 0 else axis_angle
-
-    # 打印结果
-    print("旋转轴:", axis)
-    print("旋转角度:", np.degrees(angle), "度")
-
-    # 计算角速度（假设 dt = 1 秒）
-    dt = 1.0
-    angular_velocity = axis_angle / dt
-    print("角速度:", angular_velocity)
+    pass

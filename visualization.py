@@ -44,10 +44,15 @@ def visualize_motion(motion, config):
     }
     smplx_output = smplx_model(**{k: v for k, v in body_parms.items()})
     
+    root_positions = []
+
     for frame in range(0, motion["translation"].shape[0]):  # Use step_size for downsampling    
         vertices = smplx_output.vertices[frame].detach().cpu().numpy()
         joints = smplx_output.joints[frame].detach().cpu().numpy()
         
+        # Record root position
+        root_positions.append(motion["translation"][frame])
+
         rr.set_time_seconds("stable_time", frame / 120.0 * down_sample_rate)  # Keep original timing
         rr.log("human", 
                rr.Mesh3D(
@@ -55,9 +60,13 @@ def visualize_motion(motion, config):
                    triangle_indices=smplx_model.faces,
                    vertex_normals=compute_vertex_normals(vertices, smplx_model.faces)
                ))
-        # for i in range(joints.shape[0]):
-        #     rr.log(f"joints_{i}", 
-        #        rr.Points3D(
-        #            positions=joints[i],
-        #            labels=i
-        #        ))
+
+    # Convert root positions to numpy array for visualization
+    root_positions = np.array(root_positions)
+
+    # Visualize root trajectory
+    rr.log("root_trajectory", 
+           rr.Points3D(
+               positions=root_positions,
+               colors=np.full(root_positions.shape, 255, dtype=np.uint8),
+           ))
