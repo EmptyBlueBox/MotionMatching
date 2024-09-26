@@ -1,0 +1,24 @@
+database:
+  AMASS_path: "./AMASS" # path to the database
+  AMASS_cache_path: "./AMASS_cache"
+  left_foot_index: 7
+  right_foot_index: 8
+  loss_weight:
+    cur_root_xz_velocity: 1.0
+    cur_root_y_angular_velocity: 1.0
+    cur_foot_relative_position: 3.0
+    future_root_xz_position: 10.0
+
+motion_matching:
+  init_seq_name: "0005_Walking001_stageii.npz"
+  init_seq_idx: 100
+  search_interval: 40 # search interval for motion matching
+  keypoint_list:
+    - [0,0]
+    - [5, 0]
+    - [10, 0]
+    - [10, 5]
+    - [5, 10]
+
+visualization:
+  down_sample_rate: 5

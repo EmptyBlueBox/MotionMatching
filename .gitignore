@@ -1,0 +1,18 @@
+# MacOS
+.DS_Store
+
+# VSCode
+.vscode
+tempCodeRunnerFile.py
+
+# Python
+__pycache__
+
+# Binary
+*.npz
+*.npy
+*.pkl
+
+# Tmp
+motionmatching
+test*
