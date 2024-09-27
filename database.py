@@ -43,7 +43,7 @@ class MotionMatchingDatabase:
                 "hand_pose": motion_data_all["poses"][:, 66:],
             }
             self.motion_data[motion_file] = motion_data
-            print(f"Load motion data: {motion_file}")
+            print(f"Load motion data: {motion_file}, motion data length: {motion_data['translation'].shape[0]}")
             
     def calculate_key(self):
         # See if the cache exists, use hash to determine if the cache is valid
@@ -136,6 +136,12 @@ class MotionMatchingDatabase:
                 loss_future_root_xz_position = np.linalg.norm(future_root_xz_position_in_current_root_y_rotation - condition["future_root_xz_position"][i], axis=1)
                 loss_future_trajectory += loss_future_root_xz_position
             
+            # # Calculate future loss with angle instead of distance
+            # vector1=motion_data_key["root_xz_translation"][self.search_interval:] - motion_data_key["root_xz_translation"][:-self.search_interval]
+            # vector1=rotate_xz_vector(-motion_data_key["root_y_rotation"][:-self.search_interval], vector1)
+            # vector2=condition["future_root_xz_position"][0]
+            # loss_future_trajectory = np.arccos(np.dot(vector1, vector2)/np.linalg.norm(vector1)/np.linalg.norm(vector2))
+
             # Calculate total loss
             loss = loss_cur_root_xz_velocity * self.loss_weight["cur_root_xz_velocity"] + loss_cur_root_y_angular_velocity * self.loss_weight["cur_root_y_angular_velocity"] + loss_cur_foot_relative_position * self.loss_weight["cur_foot_relative_position"] + loss_future_root_xz_position * self.loss_weight["future_root_xz_position"]
             

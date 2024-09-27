@@ -4,6 +4,7 @@ import torch
 import smplx
 import math
 from scipy.spatial.transform import Rotation as R
+import matplotlib.pyplot as plt
 
 def compute_vertex_normals(vertices, faces):
     """
@@ -238,6 +239,9 @@ def concatenate_two_positions(pos1, pos2, frame_time:float = 1/120, half_life:fl
     Returns:
         * `pos`: [N, M, 3] ndarray, Indicates the second segment of motion
     """
+    pos1 = pos1.copy()
+    pos2 = pos2.copy()
+    
     one_joint = False # 是否只对一个关节进行操作
     if pos1.ndim == 2:
         one_joint = True
@@ -270,8 +274,11 @@ def concatenate_two_rotations(rot1, rot2, frame_time:float = 1/120, half_life:fl
         * `half_life`: float, Indicates the half-life of the spring
     
     Returns:
-        * `rot`: [N, M, 4] ndarray, Indicates the second segment of motion, in the form of rotation axis angle
+        * `rot`: [N, M, 3] ndarray, Indicates the second segment of motion, in the form of rotation axis angle
     """
+    rot1 = rot1.copy()
+    rot2 = rot2.copy()
+    
     one_joint = False # 是否只对一个关节进行操作
     if rot1.ndim == 2:
         one_joint = True
@@ -364,6 +371,43 @@ def interpolate_2d_line_by_distance(points, distance, expected_points=10):
 
     return np.array(interpolated_points)
 
+def test_concatenate_two_rotations():
+    frame_length = 120
+    half_life = 0.2
+
+    rot1 = np.array([[0, np.pi, 0]] * frame_length)
+    rot2 = np.array([[0, np.pi / 2, 0]] * frame_length)
+    rot3 = np.array([[0, 2 * np.pi / 3, 0]] * frame_length)
+
+    # Add a rate of change to the rotations
+    rate_of_change1 = np.linspace(0.5, 1, frame_length).reshape(-1, 1)
+    rate_of_change2 = np.linspace(1, 0.5, frame_length).reshape(-1, 1)
+    rate_of_change3 = np.linspace(0.5, 1, frame_length).reshape(-1, 1)
+
+    rot1 = rot1 * rate_of_change1
+    rot2 = rot2 * rate_of_change2
+    rot3 = rot3 * rate_of_change3
+    
+    rot_concat1 = concatenate_two_rotations(rot1, rot2, frame_time=1/120, half_life=half_life)
+    rot_concat2 = concatenate_two_rotations(rot_concat1, rot3, frame_time=1/120, half_life=half_life)
+    
+    norms_rot1 = np.linalg.norm(rot1, axis=1)
+    norms_rot2 = np.linalg.norm(rot2, axis=1)
+    norms_rot3 = np.linalg.norm(rot3, axis=1)
+    norms_rot_concat1 = np.linalg.norm(rot_concat1, axis=1)
+    norms_rot_concat2 = np.linalg.norm(rot_concat2, axis=1)
+    
+    plt.plot(range(frame_length), norms_rot1, label='Norm of rot1')
+    plt.plot(range(frame_length, 2 * frame_length), norms_rot2, label='Norm of rot2')
+    plt.plot(range(2 * frame_length, 3 * frame_length), norms_rot3, label='Norm of rot3')
+    plt.plot(range(frame_length, 2 * frame_length), norms_rot_concat1, label='Norm of concatenated rot1 and rot2')
+    plt.plot(range(2 * frame_length, 3 * frame_length), norms_rot_concat2, label='Norm of concatenated rot1, rot2 and rot3')
+    
+    plt.xlabel('Index')
+    plt.ylabel('Norm')
+    plt.title('Norm of Rotations')
+    plt.legend()
+    plt.savefig('norms.png')
 
 if __name__ == "__main__":
-    pass
+    test_concatenate_two_rotations()

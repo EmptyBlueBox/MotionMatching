@@ -19,6 +19,7 @@ class MotionMatching:
         self.consider_trajectory_interval = config["motion_matching"]["consider_trajectory_interval"]
         self.consider_trajectory_range = config["motion_matching"]["consider_trajectory_range"]
         self.frame_time = 1/config["database"]["fps"]
+        self.touch_threshold = config["motion_matching"]["touch_threshold"]
         self.half_life = config["motion_matching"]["half_life"]
         self.max_iter = config["motion_matching"]["max_iter"]
         
@@ -32,8 +33,8 @@ class MotionMatching:
             self.keypoint_list[1][0] - self.keypoint_list[0][0],
             self.keypoint_list[1][1] - self.keypoint_list[0][1]
         )
-        self.cur_root_xz_velocity = self.database.motion_data_key[self.init_seq_name]["root_xz_velocity"][self.init_seq_idx] # 一直是 y 朝前的
-        self.cur_root_y_angular_velocity = self.database.motion_data_key[self.init_seq_name]["root_y_angular_velocity"][self.init_seq_idx]
+        self.cur_root_xz_velocity = np.linalg.norm(self.database.motion_data_key[self.init_seq_name]["root_xz_velocity"][self.init_seq_idx]) * (self.keypoint_list[1] - self.keypoint_list[0])/np.linalg.norm(self.keypoint_list[1] - self.keypoint_list[0])
+        self.cur_root_y_angular_velocity = 0
         self.cur_foot_relative_position = self.database.motion_data_key[self.init_seq_name]["foot_relative_position"][self.init_seq_idx]
         
         # Initialize target keypoint index
@@ -67,7 +68,7 @@ class MotionMatching:
             self.ans["translation"][i + 1] = concatenate_two_positions(self.ans["translation"][i], self.ans["translation"][i + 1])
             self.ans["orientation"][i + 1] = concatenate_two_rotations(self.ans["orientation"][i], self.ans["orientation"][i + 1])
             self.ans["body_pose"][i + 1] = concatenate_two_rotations(self.ans["body_pose"][i].reshape(second_motion_length, -1, 3), self.ans["body_pose"][i + 1].reshape(second_motion_length, -1, 3), frame_time=self.frame_time, half_life=self.half_life).reshape(second_motion_length, -1)
-            self.ans["hand_pose"][i + 1] = concatenate_two_rotations(self.ans["hand_pose"][i].reshape(second_motion_length, -1, 3), self.ans["hand_pose"][i + 1].reshape(second_motion_length, -1, 3), frame_time=self.frame_time, half_life=self.half_life).reshape(second_motion_length, -1)
+            # self.ans["hand_pose"][i + 1] = concatenate_two_rotations(self.ans["hand_pose"][i].reshape(second_motion_length, -1, 3), self.ans["hand_pose"][i + 1].reshape(second_motion_length, -1, 3), frame_time=self.frame_time, half_life=self.half_life).reshape(second_motion_length, -1)
             
     def run(self):
         '''
@@ -81,7 +82,7 @@ class MotionMatching:
                 - hand_pose: the hand pose of the motion
         '''
         MAX_ITER = self.max_iter
-        while np.linalg.norm(self.cur_root_xz_translation - self.keypoint_list[-1]) > 1:
+        while np.linalg.norm(self.cur_root_xz_translation - self.keypoint_list[-1]) > self.touch_threshold:
             MAX_ITER -= 1
             if MAX_ITER <= 0:
                 print("Max iteration reached, stop motion matching")
@@ -116,14 +117,14 @@ class MotionMatching:
             print(f"Target keypoint: {self.keypoint_list[self.cur_target_keypoint_idx]}")
 
             # If arrive at the next target keypoint, move to the next target keypoint
-            if np.linalg.norm(self.cur_root_xz_translation - self.keypoint_list[self.cur_target_keypoint_idx]) < 1:
+            if np.linalg.norm(self.cur_root_xz_translation - self.keypoint_list[self.cur_target_keypoint_idx]) < self.touch_threshold:
                 self.cur_target_keypoint_idx += 1
             
             print(f"cur_root_xz_translation: {self.cur_root_xz_translation}\n")
         
         
         # Smooth the motion before concatenate all motion clips
-        # self.smooth_motion()
+        self.smooth_motion()
 
         # Concatenate all motion clips
         self.ans["translation"] = np.concatenate(self.ans["translation"], axis=0)
