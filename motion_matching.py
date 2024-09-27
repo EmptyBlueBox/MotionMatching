@@ -2,7 +2,6 @@ import numpy as np
 from database import MotionMatchingDatabase
 import yaml
 from scipy.spatial.transform import Rotation as R
-from visualization import visualize_motion
 from utils import rotate_xz_vector, decompose_rotation_with_yaxis, concatenate_two_positions, concatenate_two_rotations, interpolate_2d_line_by_distance
 
 class MotionMatching:
@@ -68,7 +67,7 @@ class MotionMatching:
             self.ans["translation"][i + 1] = concatenate_two_positions(self.ans["translation"][i], self.ans["translation"][i + 1])
             self.ans["orientation"][i + 1] = concatenate_two_rotations(self.ans["orientation"][i], self.ans["orientation"][i + 1])
             self.ans["body_pose"][i + 1] = concatenate_two_rotations(self.ans["body_pose"][i].reshape(second_motion_length, -1, 3), self.ans["body_pose"][i + 1].reshape(second_motion_length, -1, 3), frame_time=self.frame_time, half_life=self.half_life).reshape(second_motion_length, -1)
-            # self.ans["hand_pose"][i + 1] = concatenate_two_rotations(self.ans["hand_pose"][i].reshape(second_motion_length, -1, 3), self.ans["hand_pose"][i + 1].reshape(second_motion_length, -1, 3), frame_time=self.frame_time, half_life=self.half_life).reshape(second_motion_length, -1)
+            self.ans["hand_pose"][i + 1] = concatenate_two_rotations(self.ans["hand_pose"][i].reshape(second_motion_length, -1, 3), self.ans["hand_pose"][i + 1].reshape(second_motion_length, -1, 3), frame_time=self.frame_time, half_life=self.half_life).reshape(second_motion_length, -1)
             
     def run(self):
         '''

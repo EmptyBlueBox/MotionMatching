@@ -11,12 +11,12 @@ database:
     future_root_xz_position: 3.0
 
 motion_matching:
-  init_seq_name: "0005_Walking001_stageii.npz"
-  init_seq_idx: 10 # index of the initial motion in the database
-  consider_trajectory_interval: 60 # interval for considering future trajectories
-  consider_trajectory_range: 360 # range for considering future trajectories
-  search_interval: 150 # search interval for motion matching
-  keypoint_list:
+  init_seq_name: "0005_Walking001_stageii.npz"  # the initial motion for motion matching
+  init_seq_idx: 10                              # index of the initial motion in the database
+  consider_trajectory_interval: 60              # interval for considering future trajectories
+  consider_trajectory_range: 360                # range for considering future trajectories
+  search_interval: 150                          # search interval for motion matching
+  keypoint_list:                                # the target keypoints for motion matching
     - [0,0]
     - [4, 4]
     - [8, 0]
@@ -24,9 +24,9 @@ motion_matching:
     - [0, 4]
     - [10, 10]
     - [0, 0]
-  touch_threshold: 1 # threshold for touching the target keypoint
-  half_life: 0.2 # half-life for the spring
-  max_iter: 200 # maximum iterations for motion matching
+  touch_threshold: 1                            # threshold for touching the target keypoint
+  half_life: 0.2                                # half-life for the spring
+  max_iter: 200                                 # maximum iterations for motion matching
 
 visualization:
-  down_sample_rate: 5 # down sample rate for visualization, visualizing every 5 frames
+  down_sample_rate: 5                           # down sample rate for visualization, visualizing every 5 frames
