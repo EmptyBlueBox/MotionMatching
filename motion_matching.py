@@ -82,7 +82,7 @@ class MotionMatching:
                 - hand_pose: the hand pose of the motion
         '''
         MAX_ITER = self.max_iter
-        while np.linalg.norm(self.cur_root_xz_translation - self.keypoint_list[-1]) > self.touch_threshold:
+        while np.linalg.norm(self.cur_root_xz_translation - self.keypoint_list[-1]) > self.touch_threshold or self.cur_target_keypoint_idx != len(self.keypoint_list):
             MAX_ITER -= 1
             if MAX_ITER <= 0:
                 print("Max iteration reached, stop motion matching")

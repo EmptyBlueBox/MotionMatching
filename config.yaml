@@ -5,7 +5,7 @@ database:
   left_foot_index: 7
   right_foot_index: 8
   loss_weight:
-    cur_root_xz_velocity: 1.0
+    cur_root_xz_velocity: 2.0
     cur_root_y_angular_velocity: 1.0
     cur_foot_relative_position: 2.0
     future_root_xz_position: 3.0
@@ -23,6 +23,7 @@ motion_matching:
     - [0, 8]
     - [0, 4]
     - [10, 10]
+    - [0, 0]
   touch_threshold: 1 # threshold for touching the target keypoint
   half_life: 0.2 # half-life for the spring
   max_iter: 200 # maximum iterations for motion matching
