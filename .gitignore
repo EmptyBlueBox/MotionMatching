@@ -13,6 +13,8 @@ __pycache__
 *.npy
 *.pkl
 !AMASS/*.npz
+*.rrd
+*.mp4
 
 # Image
 *.png
