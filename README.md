@@ -2,6 +2,10 @@
 
 A motion matching project based on AMASS dataset.
 
+## Result
+
+[Motion Matching on AMASS (YouTube)](https://youtu.be/DhTEMzsdJdA)
+
 ## Requirements
 
 ```Shell
